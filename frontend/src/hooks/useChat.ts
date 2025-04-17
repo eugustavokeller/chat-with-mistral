@@ -1,5 +1,6 @@
 import { useReducer, useEffect } from "react";
 import { Message, ChatState } from "../types/chat";
+import { useAuth } from "../contexts/AuthContext";
 
 const CHAT_STORAGE_KEY = "chat_messages";
 
@@ -13,7 +14,8 @@ type ChatAction =
   | { type: "ADD_MESSAGE"; payload: Message }
   | { type: "SET_LOADING"; payload: boolean }
   | { type: "SET_ERROR"; payload: string | null }
-  | { type: "CLEAR_CHAT" };
+  | { type: "CLEAR_CHAT" }
+  | { type: "SET_MESSAGES"; payload: Message[] };
 
 const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
   switch (action.type) {
@@ -39,6 +41,12 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
         messages: [],
         error: null,
       };
+    case "SET_MESSAGES":
+      return {
+        ...state,
+        messages: action.payload,
+        error: null,
+      };
     default:
       return state;
   }
@@ -46,7 +54,34 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
 
 export const useChat = () => {
   const [state, dispatch] = useReducer(chatReducer, initialState);
+  const { token } = useAuth();
   let abortController: AbortController | null = null;
+
+  // Load chat history from MongoDB
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        const response = await fetch("http://localhost:3001/api/chat/history", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to load chat history");
+        }
+
+        const messages = await response.json();
+        dispatch({ type: "SET_MESSAGES", payload: messages });
+      } catch (error) {
+        console.error("Error loading chat history:", error);
+      }
+    };
+
+    if (token) {
+      loadHistory();
+    }
+  }, [token]);
 
   // Carregar mensagens do localStorage ao iniciar
   useEffect(() => {
@@ -84,12 +119,16 @@ export const useChat = () => {
 
       dispatch({ type: "ADD_MESSAGE", payload: userMessage });
 
-      const response = await fetch("http://localhost:3001/api/chat", {
+      const response = await fetch("http://localhost:3001/api/chat/send", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({
+          sessionId: "default", // You can implement multiple sessions later
+          prompt: content,
+        }),
         signal: abortController.signal,
       });
 
@@ -128,9 +167,30 @@ export const useChat = () => {
     }
   };
 
-  const clearChat = () => {
-    dispatch({ type: "CLEAR_CHAT" });
-    localStorage.removeItem(CHAT_STORAGE_KEY);
+  const clearChat = async () => {
+    try {
+      const response = await fetch("http://localhost:3001/api/chat/clear", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          sessionId: "default",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to clear chat");
+      }
+
+      dispatch({ type: "CLEAR_CHAT" });
+    } catch (error) {
+      dispatch({
+        type: "SET_ERROR",
+        payload: error instanceof Error ? error.message : "An error occurred",
+      });
+    }
   };
 
   return {

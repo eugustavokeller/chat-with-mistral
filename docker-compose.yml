@@ -1,38 +1,8 @@
 version: "3.8"
 
 services:
-  ollama:
-    image: ollama/ollama
-    container_name: ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    environment:
-      - OLLAMA_HOST=0.0.0.0:11434
-    networks:
-      - ollama-network
-    restart: unless-stopped
-
-  backend:
-    build: ./backend
-    container_name: chat-backend
-    ports:
-      - "3001:3001"
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-    environment:
-      - MONGODB_URI=mongodb://mongodb:27017/chatdb
-    depends_on:
-      - mongodb
-    networks:
-      - ollama-network
-    restart: unless-stopped
-
   frontend:
     build: ./frontend
-    container_name: chat-frontend
     ports:
       - "3000:3000"
     volumes:
@@ -43,25 +13,36 @@ services:
     command: npm run dev -- --host
     depends_on:
       - backend
-    networks:
-      - ollama-network
-    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    ports:
+      - "3001:3001"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/chat
+      - JWT_SECRET=your-secret-key-here
+      - PORT=3001
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      - mongodb
+      - ollama
 
   mongodb:
     image: mongo:latest
-    container_name: chat-mongodb
     ports:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
-    networks:
-      - ollama-network
-    restart: unless-stopped
 
-networks:
-  ollama-network:
-    driver: bridge
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
 
 volumes:
-  ollama_data:
   mongodb_data:
+  ollama_data:

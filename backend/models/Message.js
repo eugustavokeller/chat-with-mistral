@@ -1,8 +1,9 @@
 import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema({
-  sessionId: {
-    type: String,
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
     required: true,
   },
   role: {
@@ -20,4 +21,6 @@ const messageSchema = new mongoose.Schema({
   },
 });
 
-export const Message = mongoose.model("Message", messageSchema);
+const Message = mongoose.model("Message", messageSchema);
+
+export default Message;
