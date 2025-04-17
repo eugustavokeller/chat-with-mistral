@@ -10,24 +10,24 @@ interface MessageProps {
 
 const Message: React.FC<MessageProps> = ({ role, content, timestamp }) => {
   const isUser = role === "user";
-  const formattedTime = format(timestamp, "HH:mm");
 
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
         className={`max-w-[80%] rounded-lg p-4 ${
           isUser
-            ? "bg-blue-500 text-white"
-            : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+            ? "bg-indigo-600 text-white"
+            : "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
         }`}
       >
-        <div className="flex items-center justify-between mb-2">
-          <span className="font-semibold">
-            {isUser ? "Você" : "Assistente"}
-          </span>
-          <span className="text-xs opacity-75">{formattedTime}</span>
+        <div className="whitespace-pre-wrap">{content}</div>
+        <div
+          className={`text-xs mt-2 ${
+            isUser ? "text-indigo-200" : "text-gray-500 dark:text-gray-400"
+          }`}
+        >
+          {format(timestamp, "HH:mm")}
         </div>
-        <p className="whitespace-pre-wrap">{content}</p>
       </div>
     </div>
   );

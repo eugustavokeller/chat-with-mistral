@@ -29,12 +29,30 @@ const Chat: React.FC = () => {
       const response = await fetch("http://localhost:3001/api/messages", {
         credentials: "include",
       });
-      if (response.ok) {
-        const data = await response.json();
-        setMessages(data.messages);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Fetched messages:", data); // Debug log
+
+      if (data.messages && Array.isArray(data.messages)) {
+        const formattedMessages = data.messages.map((msg: any) => ({
+          id: msg._id || msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.timestamp),
+        }));
+        console.log("Formatted messages:", formattedMessages); // Debug log
+        setMessages(formattedMessages);
+      } else {
+        console.error("Invalid messages format:", data);
+        setMessages([]);
       }
     } catch (error) {
       console.error("Failed to fetch messages:", error);
+      setMessages([]);
     }
   };
 
