@@ -26,15 +26,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // Check if user is logged in
     const checkAuth = async () => {
       try {
-        const response = await fetch("/api/auth/me", {
-          credentials: "include",
+        const token = localStorage.getItem("token");
+        if (!token) {
+          setLoading(false);
+          return;
+        }
+
+        const response = await fetch("http://localhost:3001/api/auth/me", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
+
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
+        } else {
+          // Token inválido ou expirado
+          localStorage.removeItem("token");
+          setUser(null);
         }
       } catch (error) {
         console.error("Auth check failed:", error);
+        localStorage.removeItem("token");
+        setUser(null);
       } finally {
         setLoading(false);
       }
@@ -49,7 +64,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       headers: {
         "Content-Type": "application/json",
       },
-      credentials: "include",
       body: JSON.stringify({ username, password }),
     });
 
@@ -58,6 +72,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     const data = await response.json();
+    console.log("Login response:", data); // Debug log
+
+    if (!data.token) {
+      throw new Error("No token received from server");
+    }
+
+    localStorage.setItem("token", data.token);
     setUser(data.user);
   };
 
@@ -67,7 +88,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       headers: {
         "Content-Type": "application/json",
       },
-      credentials: "include",
       body: JSON.stringify({ username, password }),
     });
 
@@ -76,14 +96,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     const data = await response.json();
+    console.log("Register response:", data); // Debug log
+
+    if (!data.token) {
+      throw new Error("No token received from server");
+    }
+
+    localStorage.setItem("token", data.token);
     setUser(data.user);
   };
 
-  const logout = async () => {
-    await fetch("http://localhost:3001/api/auth/logout", {
-      method: "POST",
-      credentials: "include",
-    });
+  const logout = () => {
+    localStorage.removeItem("token");
     setUser(null);
   };
 

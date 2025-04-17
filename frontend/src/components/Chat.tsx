@@ -26,8 +26,16 @@ const Chat: React.FC = () => {
 
   const fetchMessages = async () => {
     try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setMessages([]);
+        return;
+      }
+
       const response = await fetch("http://localhost:3001/api/messages", {
-        credentials: "include",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (!response.ok) {
@@ -35,7 +43,7 @@ const Chat: React.FC = () => {
       }
 
       const data = await response.json();
-      console.log("Fetched messages:", data); // Debug log
+      console.log("Fetched messages:", data);
 
       if (data.messages && Array.isArray(data.messages)) {
         const formattedMessages = data.messages.map((msg: any) => ({
@@ -44,7 +52,7 @@ const Chat: React.FC = () => {
           content: msg.content,
           timestamp: new Date(msg.timestamp),
         }));
-        console.log("Formatted messages:", formattedMessages); // Debug log
+        console.log("Formatted messages:", formattedMessages);
         setMessages(formattedMessages);
       } else {
         console.error("Invalid messages format:", data);
@@ -63,14 +71,20 @@ const Chat: React.FC = () => {
   const handleSendMessage = async (content: string) => {
     if (!content.trim()) return;
 
+    const token = localStorage.getItem("token");
+    if (!token) {
+      console.error("No token found");
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await fetch("http://localhost:3001/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        credentials: "include",
         body: JSON.stringify({ message: content }),
       });
 

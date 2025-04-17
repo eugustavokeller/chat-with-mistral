@@ -25,7 +25,6 @@ router.post("/register", async (req, res) => {
     const user = new User({ username, password });
     await user.save();
     console.log("User created successfully:", user._id);
-    sa;
     // Generate token
     console.log("Generating JWT token for user:", user._id);
     const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
@@ -33,7 +32,7 @@ router.post("/register", async (req, res) => {
     });
     console.log("Token generated successfully");
 
-    res.status(201).json({ token });
+    res.status(201).json({ token: token, user: user });
   } catch (error) {
     console.error("Registration error:", {
       message: error.message,
@@ -75,7 +74,7 @@ router.post("/login", async (req, res) => {
     });
     console.log("Token generated successfully");
 
-    res.json({ token });
+    res.json({ token: token, user: user });
   } catch (error) {
     console.error("Login error:", {
       message: error.message,
@@ -84,6 +83,16 @@ router.post("/login", async (req, res) => {
     });
     res.status(500).json({ message: error.message });
   }
+});
+
+router.post("/logout", auth, (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error("Logout error:", err);
+      return res.status(500).json({ message: "Failed to logout" });
+    }
+    res.json({ message: "Logged out successfully" });
+  });
 });
 
 // Get current user
