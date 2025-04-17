@@ -1,112 +1,113 @@
 import express from "express";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
-import auth from "../middleware/auth.js";
 
 const router = express.Router();
+
+// JWT Configuration
+const JWT_SECRET =
+  process.env.JWT_SECRET || "your-super-secret-key-with-at-least-32-characters";
+const JWT_EXPIRES_IN = "24h";
 
 // Register
 router.post("/register", async (req, res) => {
   try {
-    console.log("Register request received:", req.body);
-    const { email, password } = req.body;
-    const username = email;
+    const { username, password } = req.body;
 
-    // Check if user already exists
-    console.log("Checking if user exists:", username);
+    // Check if user exists
     const existingUser = await User.findOne({ username });
     if (existingUser) {
-      console.log("User already exists:", username);
-      return res.status(400).json({ message: "Username already exists" });
+      return res.status(400).json({ error: "Username already exists" });
     }
 
-    // Create new user
-    console.log("Creating new user:", username);
-    const user = new User({ username, password });
-    await user.save();
-    console.log("User created successfully:", user._id);
-    // Generate token
-    console.log("Generating JWT token for user:", user._id);
-    const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
-    });
-    console.log("Token generated successfully");
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    res.status(201).json({ token: token, user: user });
-  } catch (error) {
-    console.error("Registration error:", {
-      message: error.message,
-      stack: error.stack,
-      body: req.body,
+    // Create user
+    const user = new User({
+      username,
+      password: hashedPassword,
     });
-    res.status(500).json({ message: error.message });
+
+    await user.save();
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user._id, username: user.username },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    res.json({
+      user: {
+        id: user._id,
+        username: user.username,
+      },
+      token,
+    });
+  } catch (error) {
+    console.error("Registration error:", error);
+    res.status(500).json({ error: "Registration failed" });
   }
 });
 
 // Login
 router.post("/login", async (req, res) => {
   try {
-    console.log("Login request received:", req.body);
     const { username, password } = req.body;
 
     // Find user
-    console.log("Looking for user:", username);
     const user = await User.findOne({ username });
     if (!user) {
-      console.log("User not found:", username);
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(400).json({ error: "Invalid credentials" });
     }
-    console.log("User found:", user._id);
 
     // Check password
-    console.log("Comparing passwords");
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      console.log("Password mismatch for user:", user._id);
-      return res.status(401).json({ message: "Invalid credentials" });
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(400).json({ error: "Invalid credentials" });
     }
-    console.log("Password match successful");
 
-    // Generate token
-    console.log("Generating JWT token for user:", user._id);
-    const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user._id, username: user.username },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    res.json({
+      user: {
+        id: user._id,
+        username: user.username,
+      },
+      token,
     });
-    console.log("Token generated successfully");
-
-    res.json({ token: token, user: user });
   } catch (error) {
-    console.error("Login error:", {
-      message: error.message,
-      stack: error.stack,
-      body: req.body,
-    });
-    res.status(500).json({ message: error.message });
+    console.error("Login error:", error);
+    res.status(500).json({ error: "Login failed" });
   }
 });
 
-router.post("/logout", auth, (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      console.error("Logout error:", err);
-      return res.status(500).json({ message: "Failed to logout" });
-    }
-    res.json({ message: "Logged out successfully" });
-  });
-});
-
 // Get current user
-router.get("/me", auth, async (req, res) => {
+router.get("/me", async (req, res) => {
   try {
-    console.log("Get current user request received");
-    console.log("User from request:", req.user);
-    res.json({ user: req.user });
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({ error: "No token provided" });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = await User.findById(decoded.id).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({ user });
   } catch (error) {
-    console.error("Get current user error:", {
-      message: error.message,
-      stack: error.stack,
-    });
-    res.status(500).json({ message: error.message });
+    console.error("Get user error:", error);
+    res.status(401).json({ error: "Invalid token" });
   }
 });
 

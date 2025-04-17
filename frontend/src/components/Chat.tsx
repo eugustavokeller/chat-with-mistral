@@ -31,7 +31,7 @@ const Chat: React.FC = () => {
         setMessages([]);
         return;
       }
-
+      console.log("Fetching messages with token:", token);
       const response = await fetch("http://localhost:3001/api/messages", {
         headers: {
           Authorization: `Bearer ${token}`,
