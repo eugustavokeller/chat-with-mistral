@@ -104,7 +104,7 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 
 - **Gustavo Keller**
   - GitHub: [@eugustavokeller](https://github.com/eugustavokeller)
-  - LinkedIn: [Gustavo Keller](https://linkedin.com/in/gustavokeller)
+  - LinkedIn: [Gustavo Keller](https://www.linkedin.com/in/gustavo-keller-59124097)
 
 ## 🙏 Agradecimentos
 
