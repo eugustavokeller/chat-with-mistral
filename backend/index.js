@@ -1,65 +1,109 @@
 import express from "express";
 import cors from "cors";
-import bodyParser from "body-parser";
+import mongoose from "mongoose";
+import { Message } from "./models/Message.js";
 import fetch from "node-fetch";
 
 const app = express();
+const port = 3001;
+
+// Middleware
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json());
 
+// Connect to MongoDB
+mongoose
+  .connect("mongodb://mongodb:27017/chatdb")
+  .then(() => console.log("Connected to MongoDB"))
+  .catch((err) => console.error("MongoDB connection error:", err));
+
+// Chat endpoint
 app.post("/api/chat", async (req, res) => {
-  const { prompt } = req.body;
-  console.log("Recebendo prompt:", prompt);
-
   try {
-    console.log("Fazendo requisição para Ollama...");
-    const ollamaResponse = await fetch("http://ollama:11434/api/generate", {
+    const { sessionId, prompt } = req.body;
+
+    if (!sessionId || !prompt) {
+      return res
+        .status(400)
+        .json({ error: "sessionId and prompt are required" });
+    }
+
+    // Get last 10 messages from the session
+    const history = await Message.find({ sessionId })
+      .sort({ timestamp: -1 })
+      .limit(10)
+      .lean();
+
+    // Format history for the prompt
+    const formattedHistory = history
+      .reverse()
+      .map(
+        (msg) => `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`
+      )
+      .join("\n");
+
+    const fullPrompt = `${formattedHistory}\nUser: ${prompt}\nAssistant:`;
+
+    // Save user message
+    const userMessage = new Message({
+      sessionId,
+      role: "user",
+      content: prompt,
+    });
+    await userMessage.save();
+
+    // Call Ollama API
+    const response = await fetch("http://ollama:11434/api/generate", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
         model: "mistral",
-        prompt: prompt,
-        stream: true,
+        prompt: fullPrompt,
+        stream: false,
       }),
     });
 
-    if (!ollamaResponse.ok) {
-      throw new Error(`Ollama response error: ${ollamaResponse.statusText}`);
+    if (!response.ok) {
+      throw new Error("Failed to get response from Ollama");
     }
 
-    console.log("Ollama response status:", ollamaResponse.status);
+    const data = await response.json();
+    const assistantResponse = data.response;
 
-    // Configurar headers para streaming
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
-    res.setHeader("Access-Control-Allow-Origin", "*");
+    // Save assistant message
+    const assistantMessage = new Message({
+      sessionId,
+      role: "assistant",
+      content: assistantResponse,
+    });
+    await assistantMessage.save();
 
-    console.log("Iniciando stream de resposta...");
-    let chunkCount = 0;
-
-    for await (const chunk of ollamaResponse.body) {
-      chunkCount++;
-      const chunkStr = chunk.toString();
-      console.log(`Chunk ${chunkCount}:`, chunkStr);
-
-      try {
-        const data = JSON.parse(chunkStr);
-        if (data.response) {
-          console.log("Enviando resposta:", data.response);
-          res.write(`data: ${JSON.stringify({ response: data.response })}\n\n`);
-        }
-      } catch (parseError) {
-        console.error("Erro ao parsear chunk:", parseError);
-      }
-    }
-
-    console.log("Stream finalizado. Total de chunks:", chunkCount);
-    res.end();
+    res.json({ response: assistantResponse });
   } catch (error) {
-    console.error("Erro ao processar a requisição:", error);
-    res.status(500).json({ error: "Erro ao processar a requisição" });
+    console.error("Error:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-app.listen(3001, () => console.log("🚀 Backend rodando na porta 3001"));
+// Clear chat endpoint
+app.post("/api/clear", async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+
+    if (!sessionId) {
+      return res.status(400).json({ error: "sessionId is required" });
+    }
+
+    await Message.deleteMany({ sessionId });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});

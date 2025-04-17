@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   ollama:
     image: ollama/ollama
@@ -17,8 +19,13 @@ services:
     container_name: chat-backend
     ports:
       - "3001:3001"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/chatdb
     depends_on:
-      - ollama
+      - mongodb
     networks:
       - ollama-network
     restart: unless-stopped
@@ -28,8 +35,25 @@ services:
     container_name: chat-frontend
     ports:
       - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:3001
+    command: npm run dev -- --host
     depends_on:
       - backend
+    networks:
+      - ollama-network
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:latest
+    container_name: chat-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
     networks:
       - ollama-network
     restart: unless-stopped
@@ -40,3 +64,4 @@ networks:
 
 volumes:
   ollama_data:
+  mongodb_data:
