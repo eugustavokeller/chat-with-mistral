@@ -15,6 +15,9 @@ import Register from "./components/Register";
 import Chat from "./components/Chat";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { Toaster } from "./components/ui/toaster";
+import { ToastProvider } from "./components/ui/toast";
+import AuthPage from "./components/AuthPage";
 
 interface Message {
   id: string;
@@ -225,18 +228,20 @@ const App: React.FC = () => {
   return (
     <Router>
       <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Chat />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
+        <ToastProvider>
+          <Routes>
+            <Route path="/login" element={<AuthPage />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Chat />
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+          <Toaster />
+        </ToastProvider>
       </AuthProvider>
     </Router>
   );
