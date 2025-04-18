@@ -39,7 +39,6 @@ app.use(express.json());
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
-
   if (!token) {
     return res.status(401).json({ error: "No token provided" });
   }
@@ -49,12 +48,13 @@ const authenticateToken = (req, res, next) => {
       return res.status(403).json({ error: "Invalid token" });
     }
     req.user = user;
+    console.log("user", user);
     next();
   });
 };
 
 app.use("/api/auth", authRoutes);
-app.use("/api/chat", chatRoutes);
+app.use("/api/chat", authenticateToken, chatRoutes);
 app.use("/api/ollama", ollamaRoutes);
 
 // Message routes

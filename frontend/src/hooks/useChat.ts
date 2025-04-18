@@ -1,6 +1,5 @@
 import { useReducer, useEffect } from "react";
 import { Message, ChatState } from "../types/chat";
-import { useAuth } from "../contexts/AuthContext";
 
 const CHAT_STORAGE_KEY = "chat_messages";
 
@@ -54,7 +53,7 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
 
 export const useChat = () => {
   const [state, dispatch] = useReducer(chatReducer, initialState);
-  const { token } = useAuth();
+  const token = localStorage.getItem("token");
   let abortController: AbortController | null = null;
 
   // Load chat history from MongoDB

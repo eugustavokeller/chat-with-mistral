@@ -63,7 +63,7 @@ const ChatPage: React.FC = () => {
       try {
         const token = localStorage.getItem("token");
         const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/chat/messages/${sessionId}`,
+          `${import.meta.env.VITE_API_URL}/api/messages/${sessionId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

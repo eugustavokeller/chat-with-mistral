@@ -31,19 +31,21 @@ const Chat: React.FC = () => {
         setMessages([]);
         return;
       }
-      console.log("Fetching messages with token:", token);
-      const response = await fetch("http://localhost:3001/api/messages", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/messages`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log("Fetched messages:", data);
 
       if (data.messages && Array.isArray(data.messages)) {
         const formattedMessages = data.messages.map((msg: any) => ({
@@ -52,7 +54,6 @@ const Chat: React.FC = () => {
           content: msg.content,
           timestamp: new Date(msg.timestamp),
         }));
-        console.log("Formatted messages:", formattedMessages);
         setMessages(formattedMessages);
       } else {
         console.error("Invalid messages format:", data);
@@ -79,13 +80,25 @@ const Chat: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:3001/api/chat", {
+      // Save user message
+      const userMessage: ChatMessage = {
+        id: Date.now().toString(),
+        role: "user",
+        content,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, userMessage]);
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ message: content }),
+        body: JSON.stringify({
+          message: content,
+          sessionId: "default",
+        }),
       });
 
       if (!response.ok) {
@@ -96,14 +109,6 @@ const Chat: React.FC = () => {
       const decoder = new TextDecoder();
 
       if (reader) {
-        const newMessage: ChatMessage = {
-          id: Date.now().toString(),
-          role: "user",
-          content,
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, newMessage]);
-
         let assistantMessage = "";
         const assistantMessageId = (Date.now() + 1).toString();
 
@@ -113,7 +118,11 @@ const Chat: React.FC = () => {
 
           const chunk = decoder.decode(value);
           try {
-            const data = JSON.parse(chunk);
+            // Handle SSE format by removing 'data:' prefix if present
+            const cleanChunk = chunk.startsWith("data:")
+              ? chunk.slice(5).trim()
+              : chunk;
+            const data = JSON.parse(cleanChunk);
             assistantMessage += data.content;
 
             setMessages((prev) => {

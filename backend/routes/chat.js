@@ -1,12 +1,11 @@
 import express from "express";
 import Message from "../models/Message.js";
-import auth from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.post("/", auth, async (req, res) => {
+router.post("/", async (req, res) => {
   const { message } = req.body;
-
+  console.log("chegou aqui");
   if (!message) {
     return res.status(400).json({ error: "Message is required" });
   }
@@ -14,7 +13,7 @@ router.post("/", auth, async (req, res) => {
   try {
     // Save user message
     const userMessage = new Message({
-      userId: req.session.userId,
+      userId: req.user.id,
       role: "user",
       content: message,
     });
@@ -64,7 +63,7 @@ router.post("/", auth, async (req, res) => {
 
     // Save assistant message
     const savedAssistantMessage = new Message({
-      userId: req.session.userId,
+      userId: req.user.id,
       role: "assistant",
       content: assistantMessage,
     });
@@ -78,7 +77,7 @@ router.post("/", auth, async (req, res) => {
 });
 
 // Get chat history by sessionId
-router.get("/messages/:sessionId", auth, async (req, res) => {
+router.get("/messages/:sessionId", async (req, res) => {
   try {
     const { sessionId } = req.params;
     const messages = await Message.find({ sessionId }).sort({ timestamp: 1 });
@@ -89,7 +88,7 @@ router.get("/messages/:sessionId", auth, async (req, res) => {
 });
 
 // Save message
-router.post("/save", auth, async (req, res) => {
+router.post("/save", async (req, res) => {
   try {
     const { sessionId, role, content } = req.body;
     const message = new Message({
@@ -106,7 +105,7 @@ router.post("/save", auth, async (req, res) => {
 });
 
 // Clear chat history
-router.delete("/clear/:sessionId", auth, async (req, res) => {
+router.delete("/clear/:sessionId", async (req, res) => {
   try {
     const { sessionId } = req.params;
     await Message.deleteMany({ sessionId });

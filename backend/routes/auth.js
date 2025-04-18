@@ -89,6 +89,12 @@ router.post("/login", async (req, res) => {
   }
 });
 
+router.post("/logout", async (req, res) => {
+  res.clearCookie("token");
+  console.log("Logged out");
+  res.json({ message: "Logged out" });
+});
+
 // Get current user
 router.get("/me", async (req, res) => {
   try {
